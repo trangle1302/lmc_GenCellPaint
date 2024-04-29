@@ -53,18 +53,6 @@ You can also download the docker container image from [here](https://ell-vault.s
 
 TODO: attached some image results here.
 
-### BibTeX
-This is a place holder, have not had time to finish the manuscript yet.
-```
-@misc{le2024tlpainting,
-      title={High-Resolution In Silico Painting with Generative Model}, 
-      author={Trang Le and Emma Lundberg},
-      year={2024},
-      eprint={XXXXXXX}, # TODO: Update this
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
-}
-```
 
 ### Training & Inference
 This command train an vqgan to predict organelle from transmitted light inputs
@@ -92,3 +80,18 @@ Each model configuration:
 
 ### Other attempt (in March 2024)
 As some might have guessed by the repo, I did try latent diffusion for this problem, since modelling the joint distribution and conditioning of multiple different channel combination sound promising. However, my limited attempt on this dataset showed that the performance of 1 diffusion model is subpar to individual organelle models. This approach did work better on a different dataset, where each FOV contains all channels of interest.
+
+
+
+### BibTeX
+This is a place holder, have not had time to finish the manuscript yet.
+```
+@misc{le2024tlpainting,
+      title={High-Resolution In Silico Painting with Generative Model}, 
+      author={Trang Le and Emma Lundberg},
+      year={2024},
+      eprint={XXXXXXX}, # TODO: Update this
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
