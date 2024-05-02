@@ -1,0 +1,6 @@
+__pycache__
+taming
+wandb
+
+*.sh
+*.out
