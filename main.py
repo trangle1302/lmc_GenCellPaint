@@ -18,9 +18,6 @@ def main(opt, logdir, nowname):
     cfgdir = os.path.join(logdir, "configs")
     seed_everything(opt.seed)
 
-    # try:
-    # import pdb; pdb.set_trace()
-    # init and save configs
     configs = [OmegaConf.load(cfg) for cfg in opt.base]
     cli = OmegaConf.from_dotlist(unknown)
     config = OmegaConf.merge(*configs, cli)
