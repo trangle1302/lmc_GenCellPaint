@@ -21,7 +21,7 @@ RUN python3 -m pip install opencv-python-headless
 #Copy your python scripts
 COPY --chown=user:user scripts/img_gen/inference.py /opt/app/inference.py
 COPY --chown=user:user ldm/ /opt/app/ldm/
-COPY --chown=user:user configs/autoencoder/lmc_bf* /opt/app/configs/
+COPY --chown=user:user configs/ /opt/app/configs/
 # TODO: Download the checkpoints first before build
 COPY --chown=user:user checkpoints/ /opt/app/checkpoints/
 ENTRYPOINT ["python3", "inference.py"]
