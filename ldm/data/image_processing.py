@@ -167,83 +167,7 @@ def crop_around_object(img, mask, bbox_label, size):
 
     return cropped_img, cropped_mask
 
-
-def load_raw_image(image_id):
-    plate_id = image_id.split("_")[0]
-    data_dir = "/scratch/groups/emmalu/HPA_temp"
-    blue = Image.open(f'{data_dir}/{plate_id}/{image_id}_blue.png')
-    bluearray = np.array(blue)
-    yellow = Image.open(f'{data_dir}/{plate_id}/{image_id}_yellow.png')
-    try:
-        yellowarray = np.array(yellow)
-    except OSError:
-        print(f"The ER channel of image {image_id} is corrupted.")
-        yellowarray = np.zeros_like(bluearray)
-    red = Image.open(f'{data_dir}/{plate_id}/{image_id}_red.png')
-    try:
-        redarray = np.array(red)
-    except SyntaxError:
-        print(f"The DAPI channel of image {image_id} is corrupted.")
-        redarray = np.zeros_like(bluearray)
-    if len(redarray.shape) == 3:
-        redarray = redarray[:, :, 0]
-        assert redarray.sum() > 0, f"The DAPI channel of image {image_id} is all zeros."
-    green = Image.open(f'{data_dir}/{plate_id}/{image_id}_green.png')
-    greenarray = np.array(green)
-    full_res_image = np.stack([redarray, greenarray, bluearray, yellowarray], axis=-1)
-    p0, p99 = np.percentile(full_res_image, (0, 99))
-    full_res_image = exposure.rescale_intensity(full_res_image, in_range=(p0, p99), out_range=(0, 255)).astype(np.uint8)
-    assert is_between_0_255(full_res_image)
-    print("loaded raw image")
-    return full_res_image
-
-
-def load_intensity_rescaled_image(image_id):
-    data_dir = "/scratch/groups/emmalu/HPA_rescaled"
-    try:
-        full_res_image = np.array(Image.open(f'{data_dir}/{image_id}.tif'))
-    except ValueError:
-        print(f"Buffer is not large enough to load image {image_id}")
-        full_res_image = load_raw_image(image_id)
-    assert is_between_0_255(full_res_image)
-    return full_res_image
     
-def load_image(datasource, image_id, channels, tile):
-    if datasource == "jump":
-        data_dir = "/scratch/groups/emmalu/JUMP/processed_tiled"
-    elif datasource == "hpa":
-        data_dir = "/scratch/groups/emmalu/HPA_rescaled"
-    else:
-        raise NotImplementedError
-    if datasource == "jump":
-        imarrays = []
-        for i in range(3):
-            if i >= len(channels):
-                #if only two reference channels than last channel will just be array of 0s
-                imarrays.append([np.zeros(imarrays[0][0].shape, dtype=np.uint8)])
-            else:
-                image_path = image_id + f"p01-ch{channels[i]}sk1fk1fl1_{int(tile)}.png"
-                imarrays.append([np.array(Image.open(f'{data_dir}/{image_path}'))])
-        #combine channels into single multichannel image
-        image = np.concatenate(imarrays, axis=0)
-        image = np.transpose(image, (1, 2, 0)) #need num channels to be last dimension
-    elif datasource == "hpa":
-        image_path = image_id + ".tif"
-        try:
-            imarray = np.array(Image.open(f'{data_dir}/{image_path}'))
-        except ValueError:
-            print(f"Buffer is not large enough to load image {image_id}")
-            imarray = load_raw_image(image_id)
-        image = imarray[:, :, channels]
-        for i in range(3-image.shape[2]):
-            z = np.array([np.zeros(image.shape[:2])]).transpose((1,2,0)).astype(np.uint8)
-            image = np.append(image, z, axis=2)
-    assert image.ndim == 3
-    assert image.shape[2] == 3
-    assert is_between_0_255(image)
-    return image
-    
-
 def load_jump(image_ids,rescale=True):
     data_dir = "/scratch/groups/emmalu/JUMP/processed_tiled"
     # JUMP channels
@@ -289,23 +213,4 @@ def load_ometiff_image(image_id, chs, rescale=True):
     else:
         full_res_image = (full_res_image/256).astype(np.uint8)
     assert is_between_0_255(full_res_image)
-    return full_res_image
-    
-
-def load_mask(datasource, image_id, tile):
-    if datasource == "jump":
-        data_dir = "/scratch/groups/emmalu/JUMP/processed_tiled"
-        mask_id = image_id.replace("images", "outlines")
-        path = f"{data_dir}/{mask_id}p01--cell_mask_{int(tile)}.npy"
-        cell_mask = np.load(path).astype(np.uint8)
-    elif datasource == "hpa":
-        data_dir = "/scratch/groups/emmalu/HPA_masks"
-        path = f"{data_dir}/{image_id}_cellmask.png"
-        cell_mask = np.array(Image.open(path)).astype(np.uint8)
-        cell_mask = np.array(cell_mask > 0).astype(np.uint8)
-
-    assert cell_mask.ndim == 2
-    assert list(np.unique(cell_mask)) == [0,1] #non empty binary img
-
-    return cell_mask
-
+    return full_res_image 
