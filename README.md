@@ -4,7 +4,7 @@
 This repo is modified from [Stable-diffusion](https://github.com/CompVis/stable-diffusion) code base, thanks the authors who made their work public!
 
 ## Requirements
-A suitable [conda](https://conda.io/) environment named `ldm` can be created
+A suitable [conda](https://conda.io/) environment named `ldmbf` can be created
 and activated with:
 
 ```
