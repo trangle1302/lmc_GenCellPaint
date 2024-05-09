@@ -1,6 +1,8 @@
 __pycache__
 taming
 wandb
+logs
+debug_logs
 
 *.sh
 *.out
