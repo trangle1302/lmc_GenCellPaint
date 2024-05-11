@@ -42,7 +42,7 @@ class ImageEvaluator:
             masks = transform(masks)
             masks = torch.tensor(masks > 0, dtype=torch.int8) #binarize cell mask
             assert masks.size() == (bs,resolution, resolution)
-        print(samples.shape, targets.shape)
+        # print(samples.shape, targets.shape)
         mses = F.mse_loss(samples, targets, reduction='none')
         maes = (samples - targets).abs()
         ssims = torchmetrics.functional.image.ssim.ssim(samples, targets, reduction='none')
