@@ -138,12 +138,12 @@ class ImageLogger(Callback):
         for k in images:
             grid = images[k]
             if grid.shape[-1] == 5: # JUMP, separate out the channels, each stain different organelle
-                grid = grid.transpose(0, 1, 2).reshape(grid.shape[0], -1)
+                grid = grid.transpose(0, 2, 1).reshape(grid.shape[0], -1)
             image = wandb.Image(grid)
 
             tag = f"{split}/batch{batch_idx}_{k}"
             wandb.log({tag: image}, step=pl_module.global_step)
-        print(f'sample/input shape {inputs.shape}, target shape {targets.shape}, output shape {outputs.shape}')
+            
         mse, ssim, mae, pcc, edist, cdist, iou = self.image_evaluator.calc_metrics(
             outputs, targets
         )
@@ -161,7 +161,7 @@ class ImageLogger(Callback):
         for k in images:
             grid = images[k]
             if grid.shape[-1] == 5: # JUMP, separate out the channels, each stain different organelle
-                grid = grid.transpose(0, 1, 2).reshape(grid.shape[0], -1)
+                grid = grid.transpose(0, 2, 1).reshape(grid.shape[0], -1)
             filename = "{}_gs-{:06}_e-{:06}_b-{:06}.png".format(
                 k, global_step, current_epoch, batch_idx
             )
@@ -255,9 +255,7 @@ class ImageLogger(Callback):
             and (pl_module.global_step > 0 or self.log_first_step)
             and self.check_frequency(check_idx)
         ):
-            print(
-                f"Logging training images in batch {batch_idx} at step {pl_module.global_step}"
-            )
+            # print(f"Logging training images in batch {batch_idx} at step {pl_module.global_step}")
             self.log_img(pl_module, batch, batch_idx, split="train")
 
     @rank_zero_only
@@ -271,7 +269,7 @@ class ImageLogger(Callback):
             and not self.disabled
             and pl_module.global_step > 0
         ):
-            print(f"Logging validation images in batch {batch_idx}")
+            # print(f"Logging validation images in batch {batch_idx}")
             self.log_img(pl_module, batch, batch_idx, split="val")
         if hasattr(pl_module, "calibrate_grad_norm"):
             if (
@@ -300,9 +298,7 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def on_validation_epoch_end(self, trainer, pl_module):
-        print(
-            f"Process {os.getpid()} in on_validation_epoch_end(), global step {pl_module.global_step}"
-        )
+        # print(f"Process {os.getpid()} in on_validation_epoch_end(), global step {pl_module.global_step}")
         if (
             self.log_to_slack
             and self.monitor_val_metric
