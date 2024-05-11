@@ -25,8 +25,8 @@ class ImageEvaluator:
     def calc_metrics(self, samples, targets, masks=None):
         '''The value range of the inputs should be between -1 and 1.'''
         bs, resolution = targets.size(0), targets.size(2) #bs=batch_size
-        assert targets.size() == (bs, 3, resolution, resolution)
-        assert samples.size() == (bs, 3, resolution, resolution)
+        # assert targets.size() == (bs, 3, resolution, resolution)
+        # assert samples.size() == (bs, 3, resolution, resolution)
         assert image_processing.is_between_minus1_1(targets)
         #note samples don't come out of model perfect between [-1,1], they exceed this range slightly
         samples = torch.clip(samples, min=-1, max=1) #is this necessary? --> yes
@@ -108,20 +108,19 @@ class ImageEvaluator:
 
         # Calculate intersection over union
         #thresh = 0.5 # changed to otsu
-        iou_per_chan = np.zeros(ssim_per_chan.shape) #[bs, 3]
+        n_ch = ssim_per_chan.shape[1]
+        iou_per_chan = np.zeros(ssim_per_chan.shape) #[bs, n_ch]
         for i in range(bs):
-
             #get otsu thresholds for each channel
             thresholds = []
-            for j in range(3):
+            for j in range(n_ch):
                 channel_img = samples[i][j].clone().to('cpu').detach().numpy()
                 thresh = threshold_otsu(channel_img)
                 thresholds.append(torch.ones_like(samples[i][j].repeat(1, 1, 1))*thresh)
             thresholds = torch.cat(thresholds, dim=0).to("cuda")
-
             if masks is not None:
-                sampled_binary = torch.tensor(torch.mul(samples[i], masks[i].repeat(3, 1, 1)) > thresholds, dtype=torch.int8)
-                target_binary = torch.tensor(torch.mul(targets[i], masks[i].repeat(3, 1, 1)) > thresholds, dtype=torch.int8)
+                sampled_binary = torch.tensor(torch.mul(samples[i], masks[i].repeat(n_ch, 1, 1)) > thresholds, dtype=torch.int8)
+                target_binary = torch.tensor(torch.mul(targets[i], masks[i].repeat(n_ch, 1, 1)) > thresholds, dtype=torch.int8)
             else:
                 sampled_binary = torch.tensor(samples[i] > thresholds, dtype=torch.int8)
                 target_binary = torch.tensor(targets[i] > thresholds, dtype=torch.int8)
