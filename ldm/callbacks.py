@@ -133,17 +133,19 @@ class ImageLogger(Callback):
             )
 
     # @rank_zero_only
-    def _wandb(self, pl_module, images, samples, targets, refs, batch_idx, split):
+    def _wandb(self, pl_module, images, inputs, targets, outputs, batch_idx, split):
         print(f"Process {os.getpid()} in _wandb()")
         for k in images:
             grid = images[k]
+            if grid.shape[-1] == 5: # JUMP, separate out the channels, each stain different organelle
+                grid = grid.transpose(0, 1, 2).reshape(grid.shape[0], -1)
             image = wandb.Image(grid)
 
             tag = f"{split}/batch{batch_idx}_{k}"
             wandb.log({tag: image}, step=pl_module.global_step)
-        print(samples.shape, targets.shape, refs.shape)
+        print(f'sample/input shape {inputs.shape}, target shape {targets.shape}, output shape {outputs.shape}')
         mse, ssim, mae, pcc, edist, cdist, iou = self.image_evaluator.calc_metrics(
-            samples, targets
+            outputs, targets
         )
         self.metrics[split]["mse"].append(mse)
         self.metrics[split]["ssim"].append(ssim)
@@ -158,6 +160,8 @@ class ImageLogger(Callback):
         root = os.path.join(save_dir, "images", split)
         for k in images:
             grid = images[k]
+            if grid.shape[-1] == 5: # JUMP, separate out the channels, each stain different organelle
+                grid = grid.transpose(0, 1, 2).reshape(grid.shape[0], -1)
             filename = "{}_gs-{:06}_e-{:06}_b-{:06}.png".format(
                 k, global_step, current_epoch, batch_idx
             )
@@ -179,10 +183,10 @@ class ImageLogger(Callback):
                 pl_module.eval()
 
             with torch.no_grad():
-                images, targets, samples = pl_module.gen_images(
+                images, inputs, outputs = pl_module.gen_images(
                     batch, split=split, **self.log_images_kwargs
-                )
-
+                ) 
+                
             for k in images:
                 N = min(images[k].shape[0], self.max_images)
                 images[k] = images[k][:N]
@@ -216,9 +220,9 @@ class ImageLogger(Callback):
             logger_log_images(
                 pl_module,
                 images,
-                samples,
-                targets,
+                inputs,
                 refs,
+                outputs,
                 #[],
                 #[],
                 #[],
