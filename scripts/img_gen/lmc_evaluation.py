@@ -1,20 +1,18 @@
-from GPUtil import showUtilization as gpu_usage
-
 from omegaconf import OmegaConf
 import argparse, os
 from PIL import Image
 import numpy as np
 import pandas as pd
 import torch
-from ldm.models.diffusion.ddim import DDIMSampler
+import sys
+sys.path.insert(0, os.getcwd())
 from ldm.util import instantiate_from_config
 from ldm.evaluation import metrics3
 
-
 ############# HELPER FUNCTIONS #################
 def predict_with_vqgan(x, model):
-    h = model.encode(x) 
-    ypred = model.decode(h) 
+    h, _, _ = model.encode(x)
+    ypred = model.decode(h)
     return ypred
 
 def normalize_array(array):
@@ -22,8 +20,9 @@ def normalize_array(array):
 
 
 def save_imgs(original_arrays, recon_arrays, imgdir, num_exs):
+  print(f'Real: {original_arrays.shape}, fake: {recon_arrays.shape}')
   #TO DO: Need to chang num_exs bc imgs will be saved in batches
-  if len(original_arrays) == len(recon_arrays): #recons from autoencoder
+  if len(original_arrays) == len(recon_arrays):
     for i in range(1, num_exs+1):
       oringal_array = normalize_array(original_arrays[i])
       recon_array = normalize_array(recon_arrays[i])
@@ -31,7 +30,9 @@ def save_imgs(original_arrays, recon_arrays, imgdir, num_exs):
       recon_img = Image.fromarray(recon_array).convert('RGB')
       original_img.save(f"{imgdir}/real_{str(i)}.png")
       recon_img.save(f"{imgdir}/fake_{str(i)}.png")
-  else: #samples from ldm
+  elif original_arrays.shape[1] == 5: # 5ch
+    pass
+  else:
     assert len(recon_arrays) % len(original_arrays), "wrong number of samples "
     #TO DO save smampled imgs
   return
@@ -45,31 +46,26 @@ def main(opt):
 
   #Constructing savedir names
   model_name = checkpoint.split("/checkpoints")[0].split("/")[-1]
-  savedir = f"{savedir}/{model_name}"
-  imgdir = f"{savedir}/images"
-  
+  imgdir = f"{savedir}/{model_name}/images"
+  print(f'Saving to {imgdir}')
   os.makedirs(imgdir, exist_ok=True) 
   
   #Get Dataloader
-  data_config = config['data']
-  data = instantiate_from_config(data_config)
+  data = instantiate_from_config(config.data)
   data.prepare_data()
   data.setup()
-
-
+  
   #Get Model
   device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-  model = instantiate_from_config(config['model'])
+  model = instantiate_from_config(config.model)
   model.load_state_dict(torch.load(checkpoint, map_location="cpu")["state_dict"], strict=False)
   model = model.to(device)
   image_evaluator = metrics3.ImageEvaluator(device=device)
-  if "ldm" in model_name:
-          sampler = DDIMSampler(model)
   model.eval()
 
 
 
-  batch_size = 16
+  batch_size = 20
 
   mses = [] #mean squared errors
   maes = [] #mean absolute errors
@@ -82,11 +78,9 @@ def main(opt):
 
   with torch.no_grad():
     with model.ema_scope():
-      for i in range(0, len(data.datasets["test"]), batch_size): #loop through number of batches
-        print("Loop step: " + str(i))
-        #get batch
-        lim = min([i+batch_size, len(data.datasets["test"])])
-        batch = [data.datasets["test"][j] for j in range(i, lim)]
+      for i in range(0, len(data.datasets["validation"]), batch_size): #loop through number of batches
+        lim = min([i+batch_size, len(data.datasets["validation"])])
+        batch = [data.datasets["validation"][j] for j in range(i, lim)]
 
         #Reformat batch to dict
         collated_batch = dict()
@@ -97,11 +91,14 @@ def main(opt):
 
         
         recons = predict_with_vqgan(torch.permute(collated_batch['image'], (0, 3, 1, 2)), model)
-
+        targets = torch.permute(collated_batch['ref-image'], (0, 3, 1, 2))
+        
         if mask:
-          mse_per_chan, mae_per_chan, ssim_per_chan, iou_per_chan, edist_per_chan, pcc_per_chan, cdist_per_chan, cell_area = image_evaluator.calc_metrics(samples=recons, targets=torch.permute(collated_batch['image'], (0, 3, 1, 2)), masks=collated_batch['cell-mask'])
+          raise NotImplementedError("find and import cell mask")
+          # mse_per_chan, mae_per_chan, ssim_per_chan, iou_per_chan, edist_per_chan, pcc_per_chan, cdist_per_chan, cell_area = image_evaluator.calc_metrics(samples=recons, targets=targets, masks=collated_batch['cell-mask'])
         else:
-          mse_per_chan, mae_per_chan, ssim_per_chan, iou_per_chan, edist_per_chan, pcc_per_chan, cdist_per_chan, __ = image_evaluator.calc_metrics(samples=recons, targets=torch.permute(collated_batch['image'], (0, 3, 1, 2)))
+          mse_per_chan, ssim_per_chan, mae_per_chan, pcc_per_chan, cos_sim, edist_per_chan, iou_per_chan = image_evaluator.calc_metrics(samples=recons, targets=targets)
+        cdist_per_chan = torch.ones(cos_sim.shape) - cos_sim
         mses.append(mse_per_chan)
         maes.append(mae_per_chan)
         ssims.append(ssim_per_chan)
@@ -122,30 +119,30 @@ def main(opt):
   cdists = np.concatenate(cdists, axis=0)    
   data = np.concatenate([mses, maes, ssims, ious, pccs, edists, cdists], axis=1)
 
-  mses_cols = ["MSE chan " + str(i) for i in range(mses.shape[1])]
-  mae_cols = ["MAE chan " + str(i) for i in range(mses.shape[1])]
-  ssim_cols = ["SSIM chan " + str(i) for i in range(ssims.shape[1])]
-  iou_cols = ["IOUs chan " + str(i) for i in range(ious.shape[1])]
-  pcc_cols = ["PCC chan " + str(i) for i in range(pccs.shape[1])]
-  edists_cols = ["Euclidean chan " + str(i) for i in range(edists.shape[1])]
-  cdists_cols = ["Cosine chan " + str(i) for i in range(cdists.shape[1])]
+  mses_cols = ["MSE chan " + str(i) for i in range(1, mses.shape[1]+1)]
+  mae_cols = ["MAE chan " + str(i) for i in range(1, mses.shape[1]+1)]
+  ssim_cols = ["SSIM chan " + str(i) for i in range(1, ssims.shape[1]+1)]
+  iou_cols = ["IOUs chan " + str(i) for i in range(1, ious.shape[1]+1)]
+  pcc_cols = ["PCC chan " + str(i) for i in range(1, pccs.shape[1]+1)]
+  edists_cols = ["Euclidean chan " + str(i) for i in range(1, edists.shape[1]+1)]
+  cdists_cols = ["Cosine chan " + str(i) for i in range(1, cdists.shape[1]+1)]
   cols = mses_cols + mae_cols + ssim_cols + iou_cols + pcc_cols + edists_cols + cdists_cols
   
   output = pd.DataFrame(data, columns=cols)
-
+  print(output)
   if mask:
     cell_areas = np.concatenate(cell_areas, axis=0)  
     output["Cell Area"] = cell_areas
   
   if mask:
-    output.to_csv(f"data/basic/{model_name}.csv", index=False)
+    output.to_csv(f"{savedir}/{model_name}.csv", index=False)
   else:
-     output.to_csv(f"data/basic/{model_name}_unmasked.csv", index=False)
+     output.to_csv(f"{savedir}/{model_name}_unmasked.csv", index=False)
 
   
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser(description="Reconstruct test imgs with autoencoder or sample images from ldm. Example command: python analysis/reconstruct.py --config=configs/autoencoder/jump_autoencoder__r45__fov512.yaml --checkpoint=/scratch/users/zwefers/stable-diffusion/logs/2024-01-31T07-58-47_jump_autoencoder__r45__fov512/checkpoints/last.ckpt --savedir=/scratch/groups/emmalu/JUMP_HPA_validation/ --num_exs=100")
+  parser = argparse.ArgumentParser(description="Reconstruct test imgs with vqgans and calculate metrics. Example command: python scripts/img_gen/lmc_evaluation.py --config=configs/bf_orgs_cellpaint.yaml --checkpoint=/scratch/users/tle1302/stable-diffusion/logs/2024-05-12T13-52-56_bf1_orgs_cellpaint/checkpoints/last.ckpt --savedir=/scratch/groups/emmalu/JUMP/vqgan_output --num_exs=100")
   parser.add_argument(
     "--config_path",
     type=str,
@@ -165,7 +162,7 @@ if __name__ == "__main__":
   parser.add_argument(
     "--savedir",
     type=str,
-    default="/scratch/groups/emmalu/JUMP_HPA_validation/",
+    default="/scratch/groups/emmalu/JUMP/vqgan_output",
     nargs="?",
     help="where to save npy file",
   )
@@ -175,12 +172,6 @@ if __name__ == "__main__":
     default=100,
     nargs="?",
     help="number of example images to save",
-  )
-  parser.add_argument(
-        "--scale",
-        type=int,
-        default=1,
-        help="unconditional guidance scale",
   )
   parser.add_argument(
         "--steps",
