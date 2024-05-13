@@ -93,7 +93,7 @@ def get_parser(**parser_kwargs):
         "-l",
         "--logdir",
         type=str,
-        default=f"{os.environ.get('MYDATA')}/stable-diffusion" if os.environ.get('MYDATA') else f"/scratch/users/{os.environ.get('USER')}/stable-diffusion",
+        default=f"{os.environ.get('MYDATA')}/lmc_GenCellPaint" if os.environ.get('MYDATA') else f"/scratch/users/{os.environ.get('USER')}/lmc_GenCellPaint",
         help="directory for logging dat shit",
     )
     parser.add_argument(
