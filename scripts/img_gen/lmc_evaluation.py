@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.util import instantiate_from_config
-from ldm.evaluation import metrics2
+from ldm.evaluation import metrics3
 
 
 ############# HELPER FUNCTIONS #################
@@ -41,9 +41,6 @@ def main(opt):
   config = OmegaConf.load(opt.config_path)
   checkpoint = opt.checkpoint
   savedir = opt.savedir
-  num_exs = opt.num_exs
-  scale = opt.scale
-  steps = opt.steps
   mask = opt.mask
 
   #Constructing savedir names
@@ -65,7 +62,7 @@ def main(opt):
   model = instantiate_from_config(config['model'])
   model.load_state_dict(torch.load(checkpoint, map_location="cpu")["state_dict"], strict=False)
   model = model.to(device)
-  image_evaluator = metrics2.ImageEvaluator(device=device)
+  image_evaluator = metrics3.ImageEvaluator(device=device)
   if "ldm" in model_name:
           sampler = DDIMSampler(model)
   model.eval()
@@ -73,7 +70,6 @@ def main(opt):
 
 
   batch_size = 16
-  originals = []
 
   mses = [] #mean squared errors
   maes = [] #mean absolute errors
@@ -83,9 +79,6 @@ def main(opt):
   edists = [] #euclidean distances
   cdists = [] #cosine distances
   cell_areas = []
-
-
-  counter = 1 #save img counter
 
   with torch.no_grad():
     with model.ema_scope():
@@ -103,22 +96,8 @@ def main(opt):
             collated_batch[k] = torch.tensor(collated_batch[k]).to(device)
 
         
-        if "auto" in model_name:
-          recons = reconstruct_with_vqgan(torch.permute(collated_batch['image'], (0, 3, 1, 2)), model)
+        recons = predict_with_vqgan(torch.permute(collated_batch['image'], (0, 3, 1, 2)), model)
 
-        elif "ldm" in model_name:
-          c = model.cond_stage_model(collated_batch)
-          uc = dict()
-          if "c_concat" in c: #I only use c_concat bc I condition with imgs but NOT text
-              #c = conditioning, uc = unconditioning
-              #uc helps to guide sampler away from random noise and to be more specific towards reference img
-              uc['c_concat'] = [torch.zeros_like(v) for v in c['c_concat']] #set uc ref img to all 0s 
-
-          #Sample and Decode
-          shape = (c['c_concat'][0].shape[1],)+c['c_concat'][0].shape[2:] #shape of tensor to randomly sample
-          samples_ddim, notsurewhatthisis = sampler.sample(S=steps, conditioning=c, batch_size=c['c_concat'][0].shape[0], shape=shape, unconditional_guidance_scale=scale, unconditional_conditioning=uc, verbose=False)
-          recons = model.decode_first_stage(samples_ddim)
-        
         if mask:
           mse_per_chan, mae_per_chan, ssim_per_chan, iou_per_chan, edist_per_chan, pcc_per_chan, cdist_per_chan, cell_area = image_evaluator.calc_metrics(samples=recons, targets=torch.permute(collated_batch['image'], (0, 3, 1, 2)), masks=collated_batch['cell-mask'])
         else:
