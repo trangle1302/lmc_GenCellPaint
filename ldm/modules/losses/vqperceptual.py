@@ -103,7 +103,7 @@ class VQLPIPSWithDiscriminator(nn.Module):
             codebook_loss = torch.tensor([0.]).to(inputs.device)
         #rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
         rec_loss = self.pixel_loss(inputs.contiguous(), reconstructions.contiguous())
-        if self.perceptual_weight > 0:
+        if (self.perceptual_weight > 0) & (inputs.shape[1] == 3): # vqq pretrained on natural image in RGB 3ch format
             p_loss = self.perceptual_loss(inputs.contiguous(), reconstructions.contiguous())
             rec_loss = rec_loss + self.perceptual_weight * p_loss
         else:
