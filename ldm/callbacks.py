@@ -134,7 +134,7 @@ class ImageLogger(Callback):
 
     # @rank_zero_only
     def _wandb(self, pl_module, images, inputs, targets, outputs, batch_idx, split):
-        print(f"Process {os.getpid()} in _wandb()")
+        # print(f"Process {os.getpid()} in _wandb()")
         for k in images:
             grid = images[k]
             if grid.shape[-1] == 5: # JUMP, separate out the channels, each stain different organelle
