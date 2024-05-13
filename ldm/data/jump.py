@@ -88,9 +88,7 @@ class JUMP:
         self.return_info = return_info
 
         self.final_size = int(size * scale_factor)
-        self.transforms = (
-            []
-        )  # A.geometric.resize.Resize(height=self.final_size, width=self.final_size, interpolation=cv2.INTER_LINEAR)]
+        self.transforms = []
         self.flip_and_rotate = flip_and_rotate
         if self.flip_and_rotate:
             self.transforms.extend(
@@ -133,8 +131,8 @@ class JUMP:
         )
 
     def __len__(self):
-        # return len(self.image_ids)
-        return 16 # testing
+        return len(self.image_ids)
+        #return 40 # testing
 
     def __getitem__(self, i):
         sample = {}
