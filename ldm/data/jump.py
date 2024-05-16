@@ -26,11 +26,14 @@ from PIL import Image
 #tiff_ch_maping = {"BF": 0, "Nucleus": 1, "Mitochondria": 2, "Actin": 3, "Tubulin": 4}
 
 
-def load_jump(file_id, chs, rescale=True):
+def load_jump(file_id, chs, rescale=True, sampling=False):
     data_dir = "/scratch/groups/emmalu/JUMP/processed_tiled/JUMP_processed_tiled"
     # JUMP channels  {1: Mito, 2: AGP, 3: NucleoliRNA, 4: ER, 5: Nucleus, 6: BF, 7: BF, 8: BF}
     img_id, tile = file_id.split("_")
-
+    if sampling:
+        ch = np.random.choice(chs)
+        chs = [ch, ch, ch]
+        print(chs)
     imgs = []
     for ch in chs:
         image_path = (
@@ -57,6 +60,7 @@ class JUMP:
         group="train",
         path_to_metadata=None,
         input_channels=None,
+        input_sampling=False,
         output_channels=None,
         size=512,
         scale_factor=1,
@@ -69,17 +73,18 @@ class JUMP:
             self.output_channels = input_channels
         else:
             self.output_channels = output_channels
-
+        self.input_sampling = input_sampling
         self.metadata = pd.read_csv(path_to_metadata)
-        print(self.metadata.shape, self.metadata.columns)
+        # print(self.metadata.shape, self.metadata.columns)
         self.metadata = self.metadata[self.metadata.Study=='jump']
-        train_data, test_data = train_test_split(
-            self.metadata, test_size=0.05, random_state=42
-        )
-        self.metadata["split"] = [
-            "train" if idx in train_data.index else "validation"
-            for idx in self.metadata.index
-        ]
+        if 'split' not in self.metadata.columns:
+            train_data, test_data = train_test_split(
+                self.metadata, test_size=0.05, random_state=42
+            )
+            self.metadata["split"] = [
+                "train" if idx in train_data.index else "validation"
+                for idx in self.metadata.index
+            ]
 
         self.metadata = self.metadata.sample(frac=1).reset_index(drop=True)
         self.indices = self.metadata[(self.metadata.split == group)].index
@@ -145,16 +150,9 @@ class JUMP:
         cond = list(map(int, info["organelles"].split(",")))
         cond = torch.tensor(cond[-3:])
 
-        if info["Study"] == "jump":
-            imarray = load_jump(file_id, self.input_channels, rescale=True)
-            targetarray = load_jump(file_id, self.output_channels, rescale=True)
-        else:  # lmc
-            img = read_ome_tiff_rescale(file_id, mode=info["TL"])
-            in_chs = [tiff_ch_maping[ch] for ch in self.input_channels]
-            out_chs = [tiff_ch_maping[ch] for ch in self.output_channels]
-            imarray = img[:, :, in_chs]
-            targetarray = img[:, :, out_chs]
-        (imarray.shape, targetarray.shape)
+        imarray = load_jump(file_id, self.input_channels, rescale=True, sampling=self.input_sampling)
+        targetarray = load_jump(file_id, self.output_channels, rescale=True)
+
 
         assert image_processing.is_between_0_255(imarray)
         assert image_processing.is_between_0_255(targetarray)
