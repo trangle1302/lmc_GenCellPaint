@@ -19,22 +19,51 @@ def predict_with_vqgan(x, model):
 
 
 def normalize_array(array):
-    return (array + 1) / 2
+    return (np.clip(((array + 1) / 2),0,1) * 255).astype('uint8')
 
-
-def save_imgs(original_arrays, recon_arrays, imgdir, num_exs):
+def save_imgs(original_arrays, recon_arrays, imgdir, num_exs, input_arrays=None, split_input=False):
+    if input_arrays is not None:
+        for i in range(1, num_exs + 1):
+            if split_input:
+                inputs_tosave = []
+                for ch in range(input_arrays.shape[1]):
+                    original_channel = normalize_array(input_arrays[i, ch, :, :])
+                    inputs_tosave.append(original_channel)
+                inputs_tosave = np.asarray(inputs_tosave).transpose(1, 0, 2).reshape(256, -1)
+                original_img = Image.fromarray(inputs_tosave).convert("L")
+                original_img.save(f"{imgdir}/sample{str(i)}_input.png")
+            else:
+                oringal_array = normalize_array(input_arrays[i])
+                original_img = Image.fromarray(oringal_array).convert("RGB")
+                original_img.save(f"{imgdir}/sample{str(i)}_input.png")
+            
     print(f"Real: {original_arrays.shape}, fake: {recon_arrays.shape}")
     # TO DO: Need to chang num_exs bc imgs will be saved in batches
-    if len(original_arrays) == len(recon_arrays):
+    if original_arrays.shape[1] == 3 & len(original_arrays) == len(recon_arrays):
         for i in range(1, num_exs + 1):
-            oringal_array = normalize_array(original_arrays[i])
-            recon_array = normalize_array(recon_arrays[i])
+            oringal_array = normalize_array(original_arrays[i,:,:,:])
+            recon_array = normalize_array(recon_arrays[i,:,:,:])
+            # print(oringal_array.shape, recon_array.shape)
             original_img = Image.fromarray(oringal_array).convert("RGB")
             recon_img = Image.fromarray(recon_array).convert("RGB")
-            original_img.save(f"{imgdir}/real_{str(i)}.png")
-            recon_img.save(f"{imgdir}/fake_{str(i)}.png")
+            original_img.save(f"{imgdir}/sample{str(i)}_target.png")
+            recon_img.save(f"{imgdir}/sample{str(i)}_output.png")
     elif original_arrays.shape[1] == 5:  # 5ch
-        pass
+        for i in range(1, num_exs + 1):
+            targets_tosave = []
+            outputs_tosave = []
+            for ch in range(5):
+                original_channel = normalize_array(original_arrays[i, ch, :, :])
+                recon_channel = normalize_array(recon_arrays[i, ch, :, :])
+                targets_tosave.append(original_channel)
+                outputs_tosave.append(recon_channel)
+            #print('List of images:', np.asarray(targets_tosave).shape, 'Transpose:', np.asarray(targets_tosave).transpose(1, 0, 2).shape)
+            targets_tosave = np.asarray(targets_tosave).transpose(1, 0, 2).reshape(256, -1)
+            outputs_tosave = np.asarray(outputs_tosave).transpose(1, 0, 2).reshape(256, -1)
+            original_img = Image.fromarray(targets_tosave).convert("L")
+            recon_img = Image.fromarray(outputs_tosave).convert("L")
+            original_img.save(f"{imgdir}/sample{str(i)}_target.png")
+            recon_img.save(f"{imgdir}/sample{str(i)}_output.png")
     else:
         assert len(recon_arrays) % len(original_arrays), "wrong number of samples "
         # TO DO save smampled imgs
@@ -94,12 +123,12 @@ def main(opt):
                     collated_batch[k] = [x[k] for x in batch]
                     if isinstance(batch[0][k], (np.ndarray, np.generic)):
                         collated_batch[k] = torch.tensor(collated_batch[k]).to(device)
-
-                recons = predict_with_vqgan(
-                    torch.permute(collated_batch["image"], (0, 3, 1, 2)), model
-                )
+                
+                inputs =  torch.permute(collated_batch["image"], (0, 3, 1, 2))
+                recons = predict_with_vqgan(inputs, model)
                 targets = torch.permute(collated_batch["ref-image"], (0, 3, 1, 2))
-
+                # print(inputs.shape, recons.shape, targets.shape, opt.num_exs)
+               
                 if mask:
                     raise NotImplementedError("find and import cell mask")
                 else:
@@ -114,7 +143,7 @@ def main(opt):
                 cdists.append(cdist_per_chan)
                 if mask:
                     cell_areas.append(cell_area)
-                    
+                 
     mses = np.concatenate(mses, axis=0)
     maes = np.concatenate(maes, axis=0)
     ssims = np.concatenate(ssims, axis=0)
@@ -151,7 +180,14 @@ def main(opt):
         output.to_csv(f"{savedir}/{model_name}.csv", index=False)
     else:
         output.to_csv(f"{savedir}/{model_name}_unmasked.csv", index=False)
-
+    '''
+    save_imgs(targets.to("cpu").detach().numpy(), #torch.clamp(targets, -1.0, 1.0).to("cpu").detach().numpy(), 
+              recons.to("cpu").detach().numpy(), #torch.clamp(recons, -1.0, 1.0).to("cpu").detach().numpy(), 
+              imgdir, 
+              opt.num_exs, 
+              input_arrays= inputs.to("cpu").detach().numpy(), #torch.clamp(inputs, -1.0, 1.0).to("cpu").detach().numpy(), 
+              split_input=True)
+    '''
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
