@@ -51,7 +51,7 @@ You can also download the docker container image from [here](https://ell-vault.s
 
 ### Example results
 
-TODO: attached some image results here.
+Figure A1 and A2 [here](https://www.biorxiv.org/content/10.1101/2024.05.31.596710v1.full.pdf).
 
 
 ### Training & Inference
