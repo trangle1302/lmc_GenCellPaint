@@ -46,7 +46,7 @@ class VQLPIPSWithDiscriminator(nn.Module):
     def __init__(self, disc_start, codebook_weight=1.0, pixelloss_weight=1.0,
                  disc_num_layers=3, disc_in_channels=3, disc_factor=1.0, disc_weight=1.0,
                  perceptual_weight=1.0, use_actnorm=False, disc_conditional=False,
-                 disc_ndf=64, disc_loss="hinge", n_classes=None, perceptual_loss="lpips",
+                 disc_ndf=64, disc_loss="hinge", n_classes=None, lpips=True, perceptual_loss="lpips",
                  pixel_loss="l1"):
         super().__init__()
         assert disc_loss in ["hinge", "vanilla"]
@@ -54,9 +54,12 @@ class VQLPIPSWithDiscriminator(nn.Module):
         assert pixel_loss in ["l1", "l2"]
         self.codebook_weight = codebook_weight
         self.pixel_weight = pixelloss_weight
-        if perceptual_loss == "lpips":
+        self.lpips = lpips
+        if self.lpips & (perceptual_loss == "lpips"):
             print(f"{self.__class__.__name__}: Running with LPIPS.")
             self.perceptual_loss = LPIPS().eval()
+        elif not self.lpips:
+            print(f"{self.__class__.__name__}: Running without LPIPS.")
         else:
             raise ValueError(f"Unknown perceptual loss: >> {perceptual_loss} <<")
         self.perceptual_weight = perceptual_weight
@@ -101,9 +104,8 @@ class VQLPIPSWithDiscriminator(nn.Module):
                 global_step, last_layer=None, cond=None, split="train", predicted_indices=None):
         if not exists(codebook_loss):
             codebook_loss = torch.tensor([0.]).to(inputs.device)
-        #rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
         rec_loss = self.pixel_loss(inputs.contiguous(), reconstructions.contiguous())
-        if self.perceptual_weight > 0:
+        if (self.perceptual_weight > 0) & (self.lpips): # lpips w vgg pretrained on natural image in RGB 3ch format
             p_loss = self.perceptual_loss(inputs.contiguous(), reconstructions.contiguous())
             rec_loss = rec_loss + self.perceptual_weight * p_loss
         else:

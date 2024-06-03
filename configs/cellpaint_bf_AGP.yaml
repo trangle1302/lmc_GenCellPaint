@@ -1,0 +1,95 @@
+model:
+  base_learning_rate: 4.0e-06
+  target: ldm.models.vqgan.VQModel
+  params:
+    embed_dim: 3
+    n_embed: 8192
+    monitor: val/rec_loss
+
+    ddconfig:
+      double_z: False
+      z_channels: 3
+      resolution: 256
+      in_channels: 3
+      out_ch: 3
+      ch: 128
+      ch_mult:
+      - 1
+      - 2
+      - 4
+      num_res_blocks: 2
+      attn_resolutions: []
+      dropout: 0.0
+    lossconfig:
+      target: ldm.modules.losses.vqperceptual.VQLPIPSWithDiscriminator
+      params:
+        lpips: False
+        disc_conditional: False
+        disc_in_channels: 3
+        disc_start: 0
+        disc_weight: 0.75
+        codebook_weight: 1.0
+        n_classes: 8192
+
+data:
+  target: ldm.data.base.DataModuleFromConfig
+  params:
+    batch_size: 20
+    num_workers: 1
+    wrap: True
+    shuffle_val_dataloader: True
+    train:
+      target: ldm.data.jump.JUMP
+      params:
+        path_to_metadata: /scratch/groups/emmalu/lightmycell/meta_lmc_jump0_wsplit.csv
+        group: 'train'
+        input_channels: [6,7,8]
+        output_channels: [2,2,2]
+        flip_and_rotate: True
+        size: 512
+        scale_factor: 0.5
+        return_info: False
+    validation:
+      target: ldm.data.jump.JUMP
+      params:
+        path_to_metadata: /scratch/groups/emmalu/lightmycell/meta_lmc_jump0_wsplit.csv
+        group: 'validation'
+        input_channels: [6,7,8]
+        output_channels: [2,2,2]
+        size: 512
+        scale_factor: 0.5
+        flip_and_rotate: False
+        return_info: False
+    test:
+      target: ldm.data.jump.JUMP
+      params:
+        path_to_metadata: /scratch/groups/emmalu/lightmycell/meta_lmc_jump0_wsplit.csv
+        group: 'test'
+        input_channels: [6,7,8]
+        output_channels: [2,2,2]
+        size: 512
+        scale_factor: 0.5
+        flip_and_rotate: False
+        return_info: False
+
+lightning:
+  callbacks:
+    image_logger:
+      target: ldm.callbacks.ImageLogger
+      params:
+        batch_frequency: 1000
+        log_validation: true
+        val_batch_frequency: 1000
+        max_images: 8
+        increase_log_steps: False
+        log_first_step: true
+        log_on_batch_idx: true
+
+  trainer:
+    benchmark: True
+    accumulate_grad_batches: 2
+    limit_train_batches: 5000
+    limit_val_batches: 50
+    num_sanity_val_steps: 0 
+    val_check_interval: 0.25
+    max_epochs: 20
