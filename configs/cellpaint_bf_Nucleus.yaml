@@ -1,6 +1,6 @@
 model:
   base_learning_rate: 4.0e-06
-  target: ldm.models.paired_autoencoder_ch.VQModel
+  target: ldm.models.vqgan.VQModel
   params:
     embed_dim: 3
     n_embed: 8192
