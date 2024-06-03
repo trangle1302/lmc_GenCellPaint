@@ -84,7 +84,7 @@ As some might have guessed by the repo, I did try latent diffusion for this prob
 
 
 ### BibTeX
-This is a place holder, have not had time to finish the manuscript yet.
+
 ```
 @article {Le2024.05.31.596710,
         author = {Le, Trang and Lundberg, Emma},
