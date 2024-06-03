@@ -86,12 +86,15 @@ As some might have guessed by the repo, I did try latent diffusion for this prob
 ### BibTeX
 This is a place holder, have not had time to finish the manuscript yet.
 ```
-@misc{le2024tlpainting,
-      title={High-Resolution In Silico Painting with Generative Model}, 
-      author={Trang Le and Emma Lundberg},
-      year={2024},
-      eprint={XXXXXXX}, # TODO: Update this
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@article {Le2024.05.31.596710,
+        author = {Le, Trang and Lundberg, Emma},
+        title = {High-Resolution In Silico Painting with Generative Models},
+        elocation-id = {2024.05.31.596710},
+        year = {2024},
+        doi = {10.1101/2024.05.31.596710},
+        publisher = {Cold Spring Harbor Laboratory},
+        URL = {https://www.biorxiv.org/content/early/2024/06/03/2024.05.31.596710},
+        eprint = {https://www.biorxiv.org/content/early/2024/06/03/2024.05.31.596710.full.pdf},
+        journal = {bioRxiv}
 }
 ```
