@@ -22,14 +22,9 @@ Final evaluation was performed on a hidden ~300 FOVs, which a submitted docker c
 
 1 simplified VQGAN model was trained for each organnelle, with varying performance. These models can be used separately for your organelle of interest.
 
-You can access all organelle checkpoints from here: checkpoint timestamped on April 19, 2024. 
+You can access all organelle checkpoints from [here](https://zenodo.org/records/23503019): checkpoint timestamped on April 19, 2024. 
 
-```
-wget https://ell-vault.stanford.edu/dav/trangle/www/ISBI2024_lmc_checkpoints.zip
-unzip ISBI2024_lmc_checkpoints.zip
-```
-
-This should contains:
+This contains:
 - `BF_to_Nucleus.ckpt`: 722MB.
 - `BF_to_Mitochondria.ckpt`: 722MB.
 - `BF_to_Actin.ckpt`: 722MB.
