@@ -42,7 +42,7 @@ docker save algo0:latest | gzip -c > algo0_latest.tar.gz
 You can test the winning algorithm on grand challenge platform [here](https://grand-challenge.org/algorithms/lmc_control/).
 The code to build and run docker container is also provided in this repo. This docker container takes transmitted light tiff as input, and output 4 same size predicted organelle tiff as outputs.
 
-You can also download the docker container image from [here](https://ell-vault.stanford.edu/dav/trangle/www/ISBI2024_lmc_algo0_latest.tar.gz) to test locally. The docker image of course contains the checkpoints described above. 
+You can also download the docker container image from [here](https://zenodo.org/records/23707268) to test locally. The docker image of course contains the checkpoints described above. 
 
 ### Example results
 
